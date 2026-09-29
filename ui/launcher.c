@@ -80,6 +80,7 @@ static int kf_app_keeps_awake(void){
 	return s_cur_app >= 0 && (dapps[s_cur_app].flags & APP_KEEP_AWAKE);
 }
 int kf_app_is_open(void){ return s_cur_app >= 0; }
+int kf_app_holds_clock(void){ return !kf_app_allows_sleep(); }
 void kf_app_idle_policy(int policy){ s_idle_override = (policy >= 0 && policy <= 2) ? policy : -1; }
 #define NAPPS  napps
 #define GCOLS  4

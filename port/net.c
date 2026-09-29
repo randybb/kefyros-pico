@@ -528,7 +528,7 @@ static void idle_check(void){
 		s_rejoin_khz = 0;
 	}
 	if(s_idle_drop_ms){
-		if((int32_t)(uart_last_activity() - s_idle_drop_ms) > 0 && kf_app_is_open()){
+		if((int32_t)(uart_last_activity() - s_idle_drop_ms) > 0 && kf_app_is_open() && !kf_app_holds_clock()){
 			s_idle_drop_ms = 0;
 			s_rejoin_khz = kf_clock_khz();
 			kf_clock_eco();                /* the radio only joins at <=~270 MHz */
@@ -537,7 +537,8 @@ static void idle_check(void){
 		return;
 	}
 	int min = deskconf_get_int("wifi_timeout", 10);
-	if(min <= 0 || deskconf_get_int("always_on", 0) || (!s_have_target && s_camp == CAMP_NONE) || tcp_active_pcbs) return;
+	/* no drop while an app holds its clock: leaving/rejoining stalls realtime playback */
+	if(min <= 0 || deskconf_get_int("always_on", 0) || kf_app_holds_clock() || (!s_have_target && s_camp == CAMP_NONE) || tcp_active_pcbs) return;
 	if(lv_tick_get() - uart_last_activity() < (uint32_t)min * 60000u) return;
 	kf_net_disconnect();
 	s_idle_drop_ms = lv_tick_get() | 1;
