@@ -537,7 +537,7 @@ static void idle_check(void){
 		return;
 	}
 	int min = deskconf_get_int("wifi_timeout", 10);
-	if(min <= 0 || (!s_have_target && s_camp == CAMP_NONE) || tcp_active_pcbs) return;
+	if(min <= 0 || deskconf_get_int("always_on", 0) || (!s_have_target && s_camp == CAMP_NONE) || tcp_active_pcbs) return;
 	if(lv_tick_get() - uart_last_activity() < (uint32_t)min * 60000u) return;
 	kf_net_disconnect();
 	s_idle_drop_ms = lv_tick_get() | 1;

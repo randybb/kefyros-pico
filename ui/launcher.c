@@ -409,7 +409,7 @@ static void idle_wake(void){
 static void idle_timer(lv_timer_t *t){
 	(void)t;
 	int to = deskconf_get_int("screen_timeout", 60);   /* seconds; 0 = never */
-	if(to <= 0){ idle_wake(); return; }
+	if(to <= 0 || deskconf_get_int("always_on", 0)){ idle_wake(); return; }   /* Settings: power saving off */
 	uint32_t idle = lv_tick_get() - uart_last_activity();
 	if(kf_app_keeps_awake()){ idle_wake(); return; }
 	if(idle > (uint32_t)to*1000){

@@ -316,6 +316,16 @@ static void act_clock24(lv_event_t *e){ (void)e;
 	deskconf_set_int("clock24", !deskconf_get_int("clock24",1));
 	clock24_label();
 }
+/* always_on: no idle screen-off / downclock and no WiFi idle disconnect (on a charger) */
+static lv_obj_t *btn_ao;
+static void always_on_label(void){
+	lv_obj_t *l = lv_obj_get_child(btn_ao, 0);
+	if(l) lv_label_set_text_fmt(l, "Power saving: %s", deskconf_get_int("always_on",0) ? "off" : "on");
+}
+static void act_always_on(lv_event_t *e){ (void)e;
+	deskconf_set_int("always_on", !deskconf_get_int("always_on",0));
+	always_on_label();
+}
 
 /* --- About modal (version + hardware + credit) --- */
 static lv_obj_t  *s_list = NULL, *about_box = NULL;
@@ -404,6 +414,7 @@ void app_settings_open(void){
 	btn_tz = additem(list,g, "Time zone",   act_tz, NULL);      tz_label();
 	btn_24 = additem(list,g, "Time format", act_clock24, NULL); clock24_label();
 	btn_audio = additem(list,g, "Audio output", act_audio, NULL); audio_choice=-1; audio_label();
+	btn_ao = additem(list,g, "Power saving", act_always_on, NULL); always_on_label();
 	additem(list,g, "PSRAM Burn Test",  act_burn, NULL);
 	additem(list,g, "Screen Test",      act_screentest, NULL);
 	additem(list,g, "About Kefyros",    act_about, NULL);
