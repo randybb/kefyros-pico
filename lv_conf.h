@@ -8,8 +8,17 @@
 /* Color: RGB565 in the draw buffer and native RGB565 flush to the panel. */
 #define LV_COLOR_DEPTH 16
 
-/* Use the C library (musl) for malloc/string/sprintf — it's Linux. */
+/* Pimoroni QMI PSRAM: LVGL gets its own TLSF heap in PSRAM (port/psram_qmi.c), which
+   leaves the ~147 KB SRAM malloc heap to audio, lwIP and app buffers. Elsewhere: libc. */
+#ifdef KF_LV_PSRAM_HEAP
+#include <stddef.h>
+void *kf_psram_lv_pool(size_t n);
+#define LV_USE_STDLIB_MALLOC   0   /* LV_STDLIB_BUILTIN */
+#define LV_MEM_SIZE            (1024u * 1024u)
+#define LV_MEM_POOL_ALLOC      kf_psram_lv_pool
+#else
 #define LV_USE_STDLIB_MALLOC   1   /* LV_STDLIB_CLIB */
+#endif
 #define LV_USE_STDLIB_STRING   1
 #define LV_USE_STDLIB_SPRINTF  1
 

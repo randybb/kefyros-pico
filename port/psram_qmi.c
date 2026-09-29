@@ -19,11 +19,13 @@
 #include "hardware/structs/xip_ctrl.h"
 
 #include "kefyros.h"
+#include "panic.h"
 
 #ifndef PIMORONI_PICO_PLUS2_W_PSRAM_CS_PIN
 #error "psram_qmi.c requires the Pimoroni Pico Plus 2 W board definition"
 #endif
 
+#define KF_QMI_PSRAM_CACHED  ((uintptr_t)0x11000000u)
 #define KF_QMI_PSRAM_NOCACHE ((uintptr_t)0x15000000u)
 #define KF_QMI_PSRAM_MAX_HZ  133000000u
 
@@ -153,6 +155,16 @@ void *kf_psram_map(uint32_t addr, uint32_t n){
 	   16 KiB SRAM banks over this uncached backing store instead. */
 	(void)addr; (void)n;
 	return NULL;
+}
+
+/* LVGL heap (lv_conf.h LV_MEM_POOL_ALLOC): carve it off the top of the chip, through the
+   cached window. Shrinking s_size hides it from the offset API (alloc, read/write, burn
+   test). Heap contents need not survive a reset, and the SDK cleans the XIP cache before
+   flash ops flush it. */
+void *kf_psram_lv_pool(size_t n){
+	if(!s_size || n > s_size) kf_panic("NO PSRAM", "LVGL heap lives", "in PSRAM");
+	s_size -= (uint32_t)n;
+	return (void *)(KF_QMI_PSRAM_CACHED + s_size);
 }
 
 uint32_t kf_psram_size(void){ return s_size; }

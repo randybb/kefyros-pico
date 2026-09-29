@@ -33,6 +33,7 @@ int main(void){
 	clock_init();              /* overclock to 360 MHz (or 150 MHz fallback) */
 	kf_fault_init();           /* precise fault traps -> amber screen of death */
 
+	kf_psram_init();           /* 8 MB PSRAM — probe + self-test; before lv_init (LVGL heap) */
 	lv_init();                 /* LVGL core — before any lv_* object/display  */
 	lv_display_t *disp = disp_init();          /* ILI9488 + LVGL display       */
 	kf_theme_init(disp);       /* install the amber CRT theme (flat inputs!)   */
@@ -40,7 +41,6 @@ int main(void){
 
 	kbd_init();                /* keyboard / STM32 link (uart1 + PING)         */
 	kf_audio_init();           /* PWM audio (GP26/27) + DMA — idle until played */
-	kf_psram_init();           /* 8 MB PSRAM (PIO SPI) — probe + self-test     */
 	/* cyw43 is brought up lazily by the WiFi app (kf_net_init), not here. The default
 	   250 MHz clock is already WiFi-safe (<=~270 MHz), so this is just lazy init — but
 	   any app that boosts to 400 MHz must drop back to <=270 before touching the radio. */

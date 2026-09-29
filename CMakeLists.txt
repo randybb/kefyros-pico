@@ -32,6 +32,7 @@ file(GLOB_RECURSE BEARSSL_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/lib/be
 # PicoCalc mainboard's GPIO/PIO PSRAM.
 if(PICO_BOARD STREQUAL "pimoroni_pico_plus2_w_rp2350")
     set(KF_PSRAM_SRC port/psram_qmi.c)
+    add_compile_definitions(KF_LV_PSRAM_HEAP=1)   # LVGL heap in PSRAM (lv_conf.h)
 else()
     set(KF_PSRAM_SRC port/psram.c)
 endif()
