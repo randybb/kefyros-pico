@@ -329,9 +329,22 @@ static void t_sleep_ms(uint32_t ms){
 static uint32_t t_now_unix(void){ return kf_time_unix(); }
 
 /* ===================== mem ===================== */
+#ifdef KF_LV_PSRAM_HEAP
+/* When the SRAM heap can't satisfy an app, fall back to the LVGL heap in PSRAM (cached
+   window 0x11000000). free/realloc tell the two apart by address. */
+#define IN_LV_PSRAM(p) ((uintptr_t)(p) >= 0x11000000u && (uintptr_t)(p) < 0x12000000u)
+static void  *m_alloc(size_t n){ void*p=malloc(n);if(!p&&n)p=lv_malloc(n);s_last_error=p||!n?KF_OK:KF_ENOMEM;return p; }
+static void  *m_realloc(void *p, size_t n){
+    void*q;
+    if(IN_LV_PSRAM(p)) q=lv_realloc(p,n);
+    else if(!(q=realloc(p,n))&&n&&(q=lv_malloc(n))){ size_t o=p?malloc_usable_size(p):0; memcpy(q,p,o<n?o:n); free(p); }
+    s_last_error=q||!n?KF_OK:KF_ENOMEM;return q; }
+static void   m_free(void *p){ if(IN_LV_PSRAM(p)) lv_free(p); else free(p); }
+#else
 static void  *m_alloc(size_t n){ void*p=malloc(n);s_last_error=p||!n?KF_OK:KF_ENOMEM;return p; }
 static void  *m_realloc(void *p, size_t n){ void*q=realloc(p,n);s_last_error=q||!n?KF_OK:KF_ENOMEM;return q; }
 static void   m_free(void *p){ free(p); }
+#endif
 static size_t m_avail(void){ struct mallinfo mi=mallinfo(); return mi.fordblks>0?(size_t)mi.fordblks:0; }
 static int pm_index(kf_mem h){ return h>0 && h<=KAPI_PMEM_MAX && s_pmem[h-1].used ? (int)h-1 : -1; }
 static uint32_t pm_base(kf_mem h){ int i=pm_index(h); return i<0?0xffffffffu:s_pmem[i].base; }
