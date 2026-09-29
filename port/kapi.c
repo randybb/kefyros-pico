@@ -431,8 +431,8 @@ static void sock_udp_recv(void *arg,struct udp_pcb *pcb,struct pbuf *p,const ip_
 }
 static void sock_dns_cb(const char *name,const ip_addr_t *ip,void *arg){(void)name;struct kf_sock_s*s=arg;if(!s||!s->used)return;if(!ip){s->err=KF_ENOENT;s->state=3;return;}sock_start_ip(s,ip);}
 static void sock_start_ip(struct kf_sock_s *s,const ip_addr_t *ip){
-    if(s->udp){s->up=udp_new_ip_type(IPADDR_TYPE_V4);if(!s->up||udp_connect(s->up,ip,s->port)!=ERR_OK){if(s->up)udp_remove(s->up);s->up=NULL;s->state=3;s->err=KF_EIO;return;}udp_recv(s->up,sock_udp_recv,s);s->state=1;}
-    else{s->tcp=tcp_new_ip_type(IPADDR_TYPE_V4);if(!s->tcp){s->state=3;s->err=KF_ENOMEM;return;}tcp_arg(s->tcp,s);tcp_recv(s->tcp,sock_tcp_recv);tcp_err(s->tcp,sock_tcp_err);err_t e=tcp_connect(s->tcp,ip,s->port,sock_tcp_connected);if(e!=ERR_OK){tcp_abort(s->tcp);s->tcp=NULL;s->state=3;s->err=KF_EIO;}}
+    if(s->udp){s->up=udp_new_ip_type(IP_GET_TYPE(ip));if(!s->up||udp_connect(s->up,ip,s->port)!=ERR_OK){if(s->up)udp_remove(s->up);s->up=NULL;s->state=3;s->err=KF_EIO;return;}udp_recv(s->up,sock_udp_recv,s);s->state=1;}
+    else{s->tcp=tcp_new_ip_type(IP_GET_TYPE(ip));if(!s->tcp){s->state=3;s->err=KF_ENOMEM;return;}tcp_arg(s->tcp,s);tcp_recv(s->tcp,sock_tcp_recv);tcp_err(s->tcp,sock_tcp_err);err_t e=tcp_connect(s->tcp,ip,s->port,sock_tcp_connected);if(e!=ERR_OK){tcp_abort(s->tcp);s->tcp=NULL;s->state=3;s->err=KF_EIO;}}
 }
 static kf_sock n_connect(const char *host,int port,int udp){
     if(!host||!*host||port<1||port>65535||!n_online())return NULL;int idx=-1;for(int i=0;i<KSOCK_MAX;i++)if(!s_sock[i].used){idx=i;break;}if(idx<0)return NULL;
@@ -448,11 +448,11 @@ static int n_recv(kf_sock h,void *buf,int n){struct kf_sock_s*s=(void*)h;if(!s||
 static int n_status(kf_sock h){struct kf_sock_s*s=(void*)h;if(!s||!s->used)return KF_EINVAL;if(s->state==1)return KF_OK;if(s->state==0)return KF_AGAIN;return s->err?s->err:KF_EIO;}
 static void n_close(kf_sock h){struct kf_sock_s*s=(void*)h;if(!s||!s->used)return;s->used=0;if(s->tcp){tcp_arg(s->tcp,NULL);tcp_recv(s->tcp,NULL);tcp_err(s->tcp,NULL);tcp_abort(s->tcp);}if(s->up)udp_remove(s->up);free(s->rx);memset(s,0,sizeof*s);}
 static char s_resolve_host[128];static uint32_t s_resolve_ip;static int s_resolve_state;
-static void resolve_cb(const char*n,const ip_addr_t*ip,void*a){(void)n;(void)a;if(ip){s_resolve_ip=ip4_addr_get_u32(ip_2_ip4(ip));s_resolve_state=2;}else s_resolve_state=3;}
-static kf_err n_resolve(const char *host,uint32_t *out){if(!host||!out)return KF_EINVAL;ip_addr_t ip;if(ipaddr_aton(host,&ip)){*out=ip4_addr_get_u32(ip_2_ip4(&ip));return KF_OK;}if(s_resolve_state&&strcmp(host,s_resolve_host)){s_resolve_state=0;}if(s_resolve_state==2){*out=s_resolve_ip;return KF_OK;}if(s_resolve_state==3)return KF_ENOENT;if(!s_resolve_state){snprintf(s_resolve_host,sizeof s_resolve_host,"%s",host);err_t e=dns_gethostbyname(host,&ip,resolve_cb,NULL);if(e==ERR_OK){*out=ip4_addr_get_u32(ip_2_ip4(&ip));return KF_OK;}if(e!=ERR_INPROGRESS)return KF_EIO;s_resolve_state=1;}return KF_AGAIN;}
+static void resolve_cb(const char*n,const ip_addr_t*ip,void*a){(void)n;(void)a;if(ip&&IP_IS_V4(ip)){s_resolve_ip=ip4_addr_get_u32(ip_2_ip4(ip));s_resolve_state=2;}else s_resolve_state=3;}
+static kf_err n_resolve(const char *host,uint32_t *out){if(!host||!out)return KF_EINVAL;ip_addr_t ip;if(ipaddr_aton(host,&ip)&&IP_IS_V4(&ip)){*out=ip4_addr_get_u32(ip_2_ip4(&ip));return KF_OK;}if(s_resolve_state&&strcmp(host,s_resolve_host)){s_resolve_state=0;}if(s_resolve_state==2){*out=s_resolve_ip;return KF_OK;}if(s_resolve_state==3)return KF_ENOENT;if(!s_resolve_state){snprintf(s_resolve_host,sizeof s_resolve_host,"%s",host);err_t e=dns_gethostbyname(host,&ip,resolve_cb,NULL);if(e==ERR_OK){if(!IP_IS_V4(&ip))return KF_ENOENT;*out=ip4_addr_get_u32(ip_2_ip4(&ip));return KF_OK;}if(e!=ERR_INPROGRESS)return KF_EIO;s_resolve_state=1;}return KF_AGAIN;}
 static int n_online(void){ return kf_net_present() && kf_net_state() == KF_NET_ONLINE; }
 static int n_rssi(void){ return kf_net_rssi(); }
-static uint32_t n_ip(void){ ip_addr_t ip;return ipaddr_aton(kf_net_ip(),&ip)?ip4_addr_get_u32(ip_2_ip4(&ip)):0; }
+static uint32_t n_ip(void){ ip_addr_t ip;return ipaddr_aton(kf_net_ip(),&ip)&&IP_IS_V4(&ip)?ip4_addr_get_u32(ip_2_ip4(&ip)):0; }
 static void net_clock_tick(void){
     if(!s_net_eco_hold)return;
     if(kf_net_state()==KF_NET_ONLINE||

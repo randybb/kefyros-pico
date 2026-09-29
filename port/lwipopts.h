@@ -30,6 +30,12 @@ void kf_sntp_set_time(uint32_t sec);
 #define LWIP_RAW                    1
 
 #define LWIP_IPV4                   1
+/* IPv6: SLAAC + MLD come from the cyw43 glue; DNS server from the RA (RDNSS). Lookups ask
+   for AAAA only when we have no IPv4 address (IPv6-only net), else A first (port/net.c). */
+#define LWIP_IPV6                   1
+#define LWIP_ND6_RDNSS_MAX_DNS_SERVERS 1
+uint8_t kf_dns_addrtype(void);
+#define LWIP_DNS_ADDRTYPE_DEFAULT   kf_dns_addrtype()
 #define LWIP_TCP                    1
 #define LWIP_UDP                    1
 #define LWIP_DNS                    1

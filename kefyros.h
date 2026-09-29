@@ -183,7 +183,7 @@ void           kf_net_poll(void);         /* pump cyw43+lwip + reconnect watchdo
 void           kf_net_reclock(void);      /* retune the cyw43 gSPI bus for the current clk_sys (clock-change hook) */
 kf_net_state_t kf_net_state(void);
 const char    *kf_net_state_str(void);    /* "off"/"connecting"/"online"/"failed" */
-const char    *kf_net_ip(void);           /* dotted IPv4, "0.0.0.0" until online */
+const char    *kf_net_ip(void);           /* IPv4, else global IPv6, "0.0.0.0" until online */
 const char    *kf_net_ssid(void);         /* current/last target SSID ("" if none) */
 int            kf_net_rssi(void);         /* current RSSI dBm, or 0 when unavailable */
 void           kf_net_connect(const char *ssid, const char *pass);  /* async; persists creds */

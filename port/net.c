@@ -42,7 +42,7 @@ static char           s_ssid[33] = {0};       /* current/last target SSID */
 static char           s_pass[65] = {0};       /* current/last target key  */
 static int            s_have_target = 0;       /* creds set -> watchdog active */
 static int            s_badauth = 0;           /* last attempt rejected the key */
-static char           s_ip[16] = "0.0.0.0";
+static char           s_ip[IP6ADDR_STRLEN_MAX] = "0.0.0.0";
 
 static uint32_t       s_last_attempt_ms = 0;   /* for the reconnect backoff */
 static uint32_t       s_attempts = 0;
@@ -165,20 +165,42 @@ static void known_forget_one(const char *ssid){
 static int s_auth_idx = 0;        /* kept for the debug readout; unused for mode select */
 static int s_link = 0;            /* DEBUG: last cyw43 link status */
 
+static int have_ip4(void){
+	return netif_default && !ip4_addr_isany_val(*netif_ip4_addr(netif_default));
+}
+
+/* first preferred global (SLAAC) IPv6 address, or NULL */
+static const ip6_addr_t *global_ip6(void){
+	if(!netif_default) return NULL;
+	for(int i=0;i<LWIP_IPV6_NUM_ADDRESSES;i++)
+		if(ip6_addr_ispreferred(netif_ip6_addr_state(netif_default, i)) &&
+		   ip6_addr_isglobal(netif_ip6_addr(netif_default, i)))
+			return netif_ip6_addr(netif_default, i);
+	return NULL;
+}
+
+/* lwIP LWIP_DNS_ADDRTYPE_DEFAULT: AAAA on an IPv6-only net, else A first (fallback AAAA) */
+uint8_t kf_dns_addrtype(void){
+	return (!have_ip4() && global_ip6()) ? LWIP_DNS_ADDRTYPE_IPV6 : LWIP_DNS_ADDRTYPE_IPV4_IPV6;
+}
+
 static void update_ip(void){
-	const ip4_addr_t *ip = netif_default ? netif_ip4_addr(netif_default) : NULL;
-	if(ip) snprintf(s_ip, sizeof s_ip, "%s", ip4addr_ntoa(ip));
-	else   snprintf(s_ip, sizeof s_ip, "0.0.0.0");
+	const ip6_addr_t *ip6 = global_ip6();
+	if(have_ip4())  snprintf(s_ip, sizeof s_ip, "%s", ip4addr_ntoa(netif_ip4_addr(netif_default)));
+	else if(ip6)    snprintf(s_ip, sizeof s_ip, "%s", ip6addr_ntoa(ip6));
+	else            snprintf(s_ip, sizeof s_ip, "0.0.0.0");
 }
 
 /* DHCP commonly supplies just one DNS server (usually the router). Keep that
    resolver in slot 0, but populate an otherwise-empty slot 1 with a direct
    fallback. lwIP automatically advances to the next configured server after
    the primary exhausts its retries. If DHCP supplied no resolver at all, make
-   the fallback primary as well. */
+   the fallback primary as well. On an IPv6-only net the RA's RDNSS fills slot 0
+   and the fallback is Cloudflare's IPv6 resolver. */
 static void ensure_dns_fallback(void){
 	ip_addr_t fallback;
-	IP_ADDR4(&fallback, 1, 1, 1, 1);             /* Cloudflare DNS */
+	if(have_ip4()) IP_ADDR4(&fallback, 1, 1, 1, 1);             /* Cloudflare DNS */
+	else           IP_ADDR6_HOST(&fallback, 0x26064700, 0x47000000, 0, 0x1111);
 	if(ip_addr_isany_val(*dns_getserver(0))) dns_setserver(0, &fallback);
 	if(ip_addr_isany_val(*dns_getserver(1))) dns_setserver(1, &fallback);
 }
@@ -384,7 +406,7 @@ static void sntp_begin(void){
 	if(started) return;
 	started = 1;
 	sntp_setoperatingmode(SNTP_OPMODE_POLL);
-	sntp_setservername(0, "pool.ntp.org");
+	sntp_setservername(0, "2.pool.ntp.org");   /* the only pool zone with AAAA records */
 	sntp_init();
 }
 
@@ -509,6 +531,8 @@ void kf_net_poll(void){
 	cyw43_arch_poll();                 /* services CYW43 + lwIP timeouts (poll mode) */
 
 	int link = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+	/* with IPv4 enabled the cyw43 glue says UP only once DHCP gave an IPv4 address */
+	if(link == CYW43_LINK_NOIP && global_ip6()) link = CYW43_LINK_UP;
 	s_link = link;
 
 	if(link == CYW43_LINK_UP){
