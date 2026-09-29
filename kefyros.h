@@ -184,6 +184,7 @@ void           kf_net_reclock(void);      /* retune the cyw43 gSPI bus for the c
 kf_net_state_t kf_net_state(void);
 const char    *kf_net_state_str(void);    /* "off"/"connecting"/"online"/"failed" */
 const char    *kf_net_ip(void);           /* IPv4, else global IPv6, "0.0.0.0" until online */
+const char    *kf_net_ip6_list(void);     /* all IPv6 addresses (link-local, SLAAC), one per line */
 const char    *kf_net_ssid(void);         /* current/last target SSID ("" if none) */
 int            kf_net_rssi(void);         /* current RSSI dBm, or 0 when unavailable */
 void           kf_net_connect(const char *ssid, const char *pass);  /* async; persists creds */

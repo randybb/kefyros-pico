@@ -15,7 +15,8 @@
 
 #define AP_MAX 32
 
-static lv_obj_t *scr, *lbl_status, *lbl_dbg, *lbl_pw, *list, *pw_box;
+static lv_obj_t *scr, *lbl_status, *lbl_dbg, *lbl_pw, *lbl_ip6, *list, *pw_box;
+static int ip6_rows;             /* IPv6 lines shown; the list sits below them */
 static lv_group_t *g;
 static lv_timer_t *wtimer;
 
@@ -46,6 +47,17 @@ static void refresh_status(void){
 	            (unsigned long)kf_net_bench_kbps(), (unsigned long)(kf_net_bench_bytes()/1024u)); break;
 	case 4: lv_label_set_text(lbl_pw, "bench: failed"); break;
 	default: lv_label_set_text(lbl_pw, ""); break;
+	}
+
+	/* IPv6 addresses under the status lines; the network list moves down one row per address */
+	const char *ip6 = kf_net_present() ? kf_net_ip6_list() : "";
+	int rows = ip6[0] ? 1 : 0;
+	for(const char *c = ip6; *c; c++) rows += *c == '\n';
+	if(strcmp(lv_label_get_text(lbl_ip6), ip6)) lv_label_set_text(lbl_ip6, ip6);
+	if(rows != ip6_rows){
+		ip6_rows = rows;
+		lv_obj_set_size(list, LCD_W-8, KF_CONTENT_H-58-16*rows);
+		lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 54+16*rows);
 	}
 
 	if(!kf_net_present()){
@@ -213,6 +225,14 @@ void app_wifi_open(void){
 	lv_obj_set_style_text_font(lbl_pw, KF_FONT, 0);
 	lv_obj_set_style_text_color(lbl_pw, KF_AMBER_BR, 0);
 	lv_obj_align(lbl_pw, LV_ALIGN_TOP_LEFT, 8, 36);
+
+	ip6_rows = 0;
+	lbl_ip6 = lv_label_create(scr);
+	lv_label_set_text(lbl_ip6, "");
+	lv_obj_set_width(lbl_ip6, LV_SIZE_CONTENT);   /* never wrap: one address per row */
+	lv_obj_set_style_text_font(lbl_ip6, KF_FONT, 0);
+	lv_obj_set_style_text_color(lbl_ip6, KF_TEXT_DIM, 0);
+	lv_obj_align(lbl_ip6, LV_ALIGN_TOP_LEFT, 8, 52);
 
 	list = lv_list_create(scr);
 	lv_obj_set_size(list, LCD_W-8, KF_CONTENT_H-58);

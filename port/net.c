@@ -585,6 +585,22 @@ const char *kf_net_state_str(void){
 }
 
 const char *kf_net_ip(void){ return s_ip; }
+
+/* every IPv6 address on the STA netif (link-local + SLAAC), one per line; "" if none */
+const char *kf_net_ip6_list(void){
+	static char buf[LWIP_IPV6_NUM_ADDRESSES * (IP6ADDR_STRLEN_MAX + 8)];
+	size_t n = 0;
+	buf[0] = 0;
+	for(int i=0; netif_default && i<LWIP_IPV6_NUM_ADDRESSES; i++){
+		u8_t st = netif_ip6_addr_state(netif_default, i);
+		if(!ip6_addr_isvalid(st) && !ip6_addr_istentative(st)) continue;
+		n += snprintf(buf + n, sizeof buf - n, "%s%s%s", n ? "\n" : "",
+		              ip6addr_ntoa(netif_ip6_addr(netif_default, i)),
+		              ip6_addr_istentative(st) ? " (DAD)" : ip6_addr_isdeprecated(st) ? " (old)" : "");
+		if(n >= sizeof buf) break;
+	}
+	return buf;
+}
 const char *kf_net_ssid(void){ return s_ssid; }
 int kf_net_rssi(void){ int32_t r=0; return s_present && cyw43_wifi_get_rssi(&cyw43_state,&r)==0 ? (int)r : 0; }
 
