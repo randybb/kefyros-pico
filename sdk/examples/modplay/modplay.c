@@ -279,8 +279,9 @@ static void show(void){
 	if(pos == s_shown_pat && row == s_shown_line) return;
 	s_shown_pat = pos; s_shown_line = row;
 	char msg[128];
-	snprintf(msg, sizeof msg, "%s %s\n%s  pos %02d/%02d  row %02d  %dch",
-	         s_paused ? "||" : ">", s_play_name, s_title[0] ? s_title : "(untitled)", pos, len, row, ch);
+	const char *fmt = !s_xm ? "MOD" : has_ext(s_play_name, ".s3m") ? "S3M" : "XM";
+	snprintf(msg, sizeof msg, "%s %s\n%s  %s  pos %02d/%02d  row %02d  %dch",
+	         s_paused ? "||" : ">", s_play_name, fmt, s_title[0] ? s_title : "(untitled)", pos, len, row, ch);
 	set_now(msg);
 }
 
